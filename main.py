@@ -16,12 +16,12 @@ model.create_context_frequency_matrix()
 print(f"Document frequency {(model.get_document_word_frequency('crecimiento', 'crecimiento'))}")
 
 #Frequency matrix normalization
-model.normalize_frequency_matrix()
+#model.normalize_frequency_matrix()
 
 print(model.context_frequency_matrix.head())
 
 #print(model.calculate_bm25_smilarity(document_1='crecimiento',document_2='crecimiento', verbose=False))
-data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True)
+data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=False)
 
 counter = 100
 for key in data.keys():

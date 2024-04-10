@@ -1,9 +1,9 @@
 import  pickle
 import  pandas as pd
 import  numpy as np
+import  progressbar as pb
 from    collections import Counter
-
-class SimilarityBM25:
+class NLPSimilarity:
 
     corpus                   = None
     vocabulary               = None
@@ -15,7 +15,13 @@ class SimilarityBM25:
     def __init__(self, lemmatized_corpus):
         self.corpus = lemmatized_corpus
 
+        
+
     def get_vocabulary(self):
+
+        """
+        Funtion to get the vocabulary of the corpus
+        """
 
         #Check if the vocabulary is already created
         try:
@@ -51,6 +57,10 @@ class SimilarityBM25:
                 self.contexts_windows = pickle.load(f)
         except:
             #Create the context windows
+            print(f"Creating context windows for each word of the vocabulary")
+            bar = pb.ProgressBar(max_value=len(self.vocabulary), widgets=[pb.Bar()])
+            bar.start()
+            bar_count = 0
             self.contexts_windows = {}
             for word in self.vocabulary:
                 self.contexts_windows[word] = []
@@ -61,6 +71,9 @@ class SimilarityBM25:
                             if(j >= 0 and j < len(self.corpus)):
                                 context.append(self.corpus[j])
                         self.contexts_windows[word].extend(context)
+                bar_count += 1
+                bar.update(bar_count) 
+            bar.finish()
 
             #Save the context windows in the file outut/contexts_windows.pkl 
             with open('output/contexts_windows.pkl', 'wb') as f:
@@ -71,7 +84,7 @@ class SimilarityBM25:
     def create_context_frequency_matrix(self, verbose=False):
         """
         Create the context frequency matrix
-        return: the context frequency matrix
+        return: the context frequency matrix as a pandas dataframe
         """
 
         #Check if the matrix is already created
@@ -92,8 +105,9 @@ class SimilarityBM25:
             df = pd.DataFrame(np.zeros((vocabulary_size, vocabulary_size)), index=list(self.vocabulary), columns=list(self.vocabulary), dtype=np.float64)
 
             print(f"Creating context frequency matrix")
-            
-            #show dataframe head
+            bar = pb.ProgressBar(max_value=vocabulary_size)
+            bar_count = 0
+            bar.start()
             for cxt in self.vocabulary:
                 context_window_counts = Counter(self.contexts_windows[cxt])
                 #print(f"Context window counts for {cxt}: {context_window_counts}")
@@ -101,7 +115,9 @@ class SimilarityBM25:
                     if word == '':
                         continue
                     df.at[cxt, word] = context_window_counts[word]
-
+                bar_count += 1
+                bar.update(bar_count)
+            bar.finish()
 
             #Save the context frequency matrix in the file outut/context_frequency_matrix.pkl
             with open('output/context_frequency_matrix.pkl', 'wb') as f:
@@ -110,11 +126,10 @@ class SimilarityBM25:
             #Print the dataframe head    
             self.context_frequency_matrix = df
 
-        print(f"Context frequency matrix created")
-        print(f"Context frequency matrix shape: {self.context_frequency_matrix.shape}")
 
         if verbose:
             print(self.context_frequency_matrix.head())
+            print(f"Context frequency matrix shape: {self.context_frequency_matrix.shape}")
 
         return self.context_frequency_matrix
 
@@ -131,6 +146,19 @@ class SimilarityBM25:
             self.create_context_frequency_matrix()
         else:
             return self.context_frequency_matrix[document]
+
+    def get_max_frequency_word(self, document):
+        """
+        Get the word with the maximum frequency in a document
+        param document: the document to get the word
+        return: the word with the maximum frequency in the document
+        """
+
+        #Check if the frequency matrix is already created
+        if self.context_frequency_matrix is None:
+            self.create_context_frequency_matrix()
+        else:
+            return self.context_frequency_matrix[document].idxmax()
 
     def get_document_word_frequency(self, document, word):
 
@@ -173,14 +201,21 @@ class SimilarityBM25:
         
         print("Normalizing frequency matrix")
 
-        matrix_array = self.context_frequency_matrix.to_numpy()
-        row_sums = matrix_array.sum(axis=1)
+        for word in self.vocabulary:
+            ctx_freq_arr = self.context_frequency_matrix.loc[word].to_numpy()
+            ctx_freq_arr_norm = np.linalg.norm(ctx_freq_arr)
+            self.context_frequency_matrix.loc[word] = ctx_freq_arr/ctx_freq_arr_norm
 
-        #Normalize the matrix
-        normalized_matrix = matrix_array / row_sums[:, np.newaxis]
+        # matrix_array = self.context_frequency_matrix.to_numpy()
+        # row_sums = matrix_array.sum(axis=1)
 
-        #Store the normalized matrix in a pandas dataframe
-        self.context_frequency_matrix = pd.DataFrame(normalized_matrix, index=list(self.vocabulary), columns=list(self.vocabulary))
+        # matrix_l2_norm = np.linalg.norm(matrix_array)
+
+        # #Normalize the matrix
+        # normalized_matrix = matrix_array/matrix_l2_norm
+
+        # #Store the normalized matrix in a pandas dataframe
+        # self.context_frequency_matrix = pd.DataFrame(normalized_matrix, index=list(self.vocabulary), columns=list(self.vocabulary))
         
         print(f"Frequency matrix normalized")
         return self.context_frequency_matrix
@@ -230,8 +265,15 @@ class SimilarityBM25:
                 self.vocabulary_idf = pickle.load(f)
         except:
             self.vocabulary_idf = {}
+
+            bar = pb.ProgressBar(max_value=len(self.vocabulary), widgets=[pb.Bar()])
+            bar.start()
+            bar_count = 0
             for word in self.vocabulary:
                 self.vocabulary_idf[word] = self.calculate_document_idf(word)
+                bar_count += 1
+                bar.update(bar_count)
+            bar.finish()
 
             #Save the vocabulary idf in the file outut/vocabulary_idf.pkl
             with open('output/vocabulary_idf.pkl', 'wb') as f:
@@ -252,35 +294,43 @@ class SimilarityBM25:
 
         return self.vocabulary_idf[word]
 
-    def calculate_document_word_BM25(self,document, word, k=1.5, b=0.75, verbose=False):
+    def calculate_document_word_BM25(self,document, word,d_len, avdl, k=1.5, b=0.75, verbose=False):
         """
-        Function to calculate the BM25 of a document
+        Function to calculate the BM25 of the word in a document
         """
 
-        #Check if the frequency matrix is already created
-        if self.context_frequency_matrix is None:
-            self.create_context_frequency_matrix()
-
-        ctx_freq_arr = self.get_document_word_frequency(document,word)
+        word_ctx_freq = self.get_document_word_frequency(document,word)
         
-        if ctx_freq_arr == 0:
+        if word_ctx_freq == 0:
             return 0
         
-        bm25 = 0
-        d_len = len(self.get_word_context_window_array(document))
-        avdl = self.calculate_documents_length_average()
+        bm25  = 0
 
         if verbose:
+            print(f"*******************************************************")
             print(f"Document: {document}")
             print(f"Word: {word}")
-            print(f"Frequency: {ctx_freq_arr}")
+            print(f"Frequency: {word_ctx_freq}")
             print(f"Document length: {d_len}")
             print(f"Average document length: {avdl}")
+            print(f"*******************************************************")
 
-        bm25 = (k+1)*ctx_freq_arr/( ctx_freq_arr + k*(1-b+b*d_len/avdl))
+
+        bm25 = ((k+1)*word_ctx_freq)/( word_ctx_freq + k*(1-b+b*(d_len/avdl)))
     
         return bm25
     
+    def calculate_document_lenght(self, document):
+        """
+        Function to calculate the length of a document
+        """
+
+        #Check if the context windows are already created
+        if self.contexts_windows is None:
+            self.create_context_windows()
+
+        return np.abs(len(self.contexts_windows[document]))
+
     def calculate_document_bm25_sum(self, document, verbose=False):
         """
         Function to calculate the sum of the BM25 of a document
@@ -294,9 +344,11 @@ class SimilarityBM25:
             print(f"Document: {document}")
 
         bm25_sum = 0
+        avdl = self.calculate_documents_length_average()
+        dl   = self.calculate_document_lenght(document)
 
         for word in self.vocabulary:
-            bm25_sum += self.calculate_document_word_BM25(document, word)
+            bm25_sum += self.calculate_document_word_BM25(document, word, dl, avdl)
 
         return bm25_sum
 
@@ -311,6 +363,7 @@ class SimilarityBM25:
             self.create_context_windows()
 
         total_length = 0
+
         for word in self.contexts_windows.keys():
             total_length += len(self.contexts_windows[word])
 
@@ -330,16 +383,25 @@ class SimilarityBM25:
         if self.vocabulary_idf is None:
             self.get_vocabulary_documents_idf()
 
-        document_1_sum = self.calculate_document_bm25_sum(document_1)
-        document_2_sum = self.calculate_document_bm25_sum(document_2)
+        d1_sum = self.calculate_document_bm25_sum(document_1)
+        d2_sum = self.calculate_document_bm25_sum(document_2)
+        d1_len = self.calculate_document_lenght(document_1)
+        d2_len = self.calculate_document_lenght(document_2)
+
+        avdl = self.calculate_documents_length_average()
 
         for word in self.vocabulary:
-            bm25_sim += self.get_document_idf(word)*(self.calculate_document_word_BM25(document_1, word)/document_1_sum)*(self.calculate_document_word_BM25(document_2, word)/document_2_sum)
+            xi = self.calculate_document_word_BM25(document_1, word,d1_len, avdl)/d1_sum
+            yi = self.calculate_document_word_BM25(document_2, word,d2_len, avdl)/d2_sum
+            bm25_sim += self.get_document_idf(word)*xi*yi
 
         if verbose:
-            print(f"Document 1: {document_1}")
-            print(f"Document 2: {document_2}")
+            print(f"*******************************************************")
+            print(f"Document 1: {document_1} BM25 sum: {d1_sum}")
+            print(f"Document 2: {document_2} BM25 sum: {d2_sum}")
+            print(f"Average document length: {avdl}")
             print(f"BM25 similarity: {bm25_sim}")
+            print(f"*******************************************************")
 
         return bm25_sim
     
@@ -366,25 +428,36 @@ class SimilarityBM25:
 
             bm25_sim = {}
 
-            document_1_calculation = np.zeros(len(self.vocabulary))
-            document_1_sum = self.calculate_document_bm25_sum(document)
+            xi      = np.zeros(len(self.vocabulary))
+            d1_sum  = self.calculate_document_bm25_sum(document)
+            avdl    = self.calculate_documents_length_average()
+            x1_len  = self.calculate_document_lenght(document)
 
             for idx,doc in enumerate(self.vocabulary):
-                document_1_calculation[idx]=(self.get_document_idf(doc)*(self.calculate_document_word_BM25(document, doc)/document_1_sum))
+                xi[idx]=(self.get_document_idf(doc)*(self.calculate_document_word_BM25(document, doc,x1_len, avdl)/d1_sum))
 
-            if verbose:
-                print("Document 1 calculation done")
-
+            bar = pb.ProgressBar(max_value=len(self.vocabulary), redirect_stdout=True)
+            bar.start()
+            bar_count = 0
             for doc in self.vocabulary:
-                document_sum = self.calculate_document_bm25_sum(doc)
-                document_2_calculation = np.zeros(len(self.vocabulary))
-                for idx, word in enumerate(self.vocabulary):
-                    bm25_d2 = (self.calculate_document_word_BM25(doc, word)/document_sum)
-                    document_2_calculation[idx]=(bm25_d2)
-                bm25_sim[f"{document}:{doc}"] = (np.transpose(document_1_calculation)*document_2_calculation).sum()
+                document_sum    = self.calculate_document_bm25_sum(doc)
+                yi              = np.zeros(len(self.vocabulary))
+                yi_len          = self.calculate_document_lenght(doc)
 
+                for idx, word in enumerate(self.vocabulary):
+                    bm25_d2 = (self.calculate_document_word_BM25(doc, word, yi_len, avdl)/document_sum)
+                    yi[idx]=(bm25_d2)
+
+                bm25_sim[f"{document}:{doc}"] = (xi*yi).sum()
+
+                bar_count += 1
+                
                 if verbose:
-                    print(f"BM25 similarity {document}:{doc}: {bm25_sim[f'{document}:{doc}']}")
+                    #print(f"BM25 similarity {document}:{doc}: {bm25_sim[f'{document}:{doc}']}")
+                    bar.update(bar_count)
+                else:
+                    bar.update(bar_count)
+            bar.finish()
 
             bm25_sim = dict(sorted(bm25_sim.items(), key=lambda item: item[1], reverse=True))
 
@@ -395,3 +468,45 @@ class SimilarityBM25:
                 pickle.dump(bm25_sim, f)
 
         return self.bm25_one_to_all
+    
+    def calculate_cosine_similarity(self, document_1, document_2, verbose=False):
+        """
+        Function to calculate the cosine similarity between two documents
+        param document1: the first document
+        param document2: the second document
+        return: the cosine similarity between the two documents
+        """
+
+        #Check if the frequency matrix is already created
+        if self.context_frequency_matrix is None:
+            self.create_context_frequency_matrix()
+
+        #Get the frequency matrix of the documents
+        d1 = self.context_frequency_matrix.loc[document_1].to_numpy()
+        d2 = self.context_frequency_matrix.loc[document_2].to_numpy()
+
+        #Calculate the cosine similarity
+        cosine_sim = np.dot(d1,d2)/(np.linalg.norm(d1)*np.linalg.norm(d2))
+
+        if verbose:
+            print(f"*******************************************************")
+            print(f"Document 1: {document_1}")
+            print(f"Document 2: {document_2}")
+            print(f"Cosine similarity: {cosine_sim}")
+            print(f"*******************************************************")
+
+        return cosine_sim
+    
+    def calculate_cosine_similarity_one_to_all(self, document1, verbose=False):
+        """
+        Function to calculate the cosine similarity of a document to all the documents
+        """
+
+        documents_cosine_sim = {}
+
+        for doc in self.vocabulary:
+            documents_cosine_sim[doc] = self.calculate_cosine_similarity(document1, doc)
+
+        documents_cosine_sim = dict(sorted(documents_cosine_sim.items(), key=lambda item: item[1], reverse=True))
+
+        return documents_cosine_sim 

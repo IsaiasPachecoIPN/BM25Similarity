@@ -261,13 +261,14 @@ class SimilarityBM25:
         if self.context_frequency_matrix is None:
             self.create_context_frequency_matrix()
 
-        bm25 = 0
         ctx_freq_arr = self.get_document_word_frequency(document,word)
-        d_len = len(self.get_word_context_window_array(document))
-        avdl = self.calculate_documents_length_average()
-
+        
         if ctx_freq_arr == 0:
             return 0
+        
+        bm25 = 0
+        d_len = len(self.get_word_context_window_array(document))
+        avdl = self.calculate_documents_length_average()
 
         if verbose:
             print(f"Document: {document}")
@@ -366,23 +367,24 @@ class SimilarityBM25:
             bm25_sim = {}
 
             document_1_calculation = np.zeros(len(self.vocabulary))
-
             document_1_sum = self.calculate_document_bm25_sum(document)
 
             for idx,doc in enumerate(self.vocabulary):
                 document_1_calculation[idx]=(self.get_document_idf(doc)*(self.calculate_document_word_BM25(document, doc)/document_1_sum))
+
+            if verbose:
+                print("Document 1 calculation done")
 
             for doc in self.vocabulary:
                 document_sum = self.calculate_document_bm25_sum(doc)
                 document_2_calculation = np.zeros(len(self.vocabulary))
                 for idx, word in enumerate(self.vocabulary):
                     bm25_d2 = (self.calculate_document_word_BM25(doc, word)/document_sum)
-                    document_2_calculation[idx]=(self.get_document_idf(word)*bm25_d2)
+                    document_2_calculation[idx]=(bm25_d2)
                 bm25_sim[f"{document}:{doc}"] = (np.transpose(document_1_calculation)*document_2_calculation).sum()
 
                 if verbose:
                     print(f"BM25 similarity {document}:{doc}: {bm25_sim[f'{document}:{doc}']}")
-                    
 
             bm25_sim = dict(sorted(bm25_sim.items(), key=lambda item: item[1], reverse=True))
 

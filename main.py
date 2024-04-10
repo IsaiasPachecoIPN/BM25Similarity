@@ -21,4 +21,12 @@ model.normalize_frequency_matrix()
 print(model.context_frequency_matrix.head())
 
 #print(model.calculate_bm25_smilarity(document_1='crecimiento',document_2='crecimiento', verbose=False))
-print(model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True))
+data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True)
+
+counter = 100
+for key in data.keys():
+    print(f"{key}: {data[key]}")
+    counter -= 1
+
+    if counter == 0:
+        break

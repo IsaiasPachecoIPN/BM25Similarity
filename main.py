@@ -24,7 +24,7 @@ model.create_context_frequency_matrix()
 # print(f"Norm of the context frequency array: {ctx_freq_arr_norm}")
 
 #Frequency matrix normalization
-model.normalize_frequency_matrix()
+#model.normalize_frequency_matrix()
 
 # print(f"Document frequency {(model.get_document_word_frequency('crecimiento', 'crecimiento'))}")
 # print(model.context_frequency_matrix.head())

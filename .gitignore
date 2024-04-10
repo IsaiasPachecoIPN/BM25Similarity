@@ -1,0 +1,5 @@
+
+output/context_frequency_matrix.pkl
+output/contexts_windows.pkl
+output/vocabulary.pkl
+output/vocabulary_idf.pkl

@@ -25,7 +25,7 @@ class NLPSimilarity:
 
         #Check if the vocabulary is already created
         try:
-            with open('output/vocabulary.pkl', 'rb') as f:
+            with open('./output/vocabulary.pkl', 'rb') as f:
                 self.vocabulary = pickle.load(f)
         except:
             #Create the vocabulary
@@ -34,7 +34,7 @@ class NLPSimilarity:
                 if(doc != ''):
                     self.vocabulary.add(doc)
             #Save the vocabulary in the file outut/vocabulary.pkl 
-            with open('output/vocabulary.pkl', 'wb') as f:
+            with open('./output/vocabulary.pkl', 'wb') as f:
                 pickle.dump(self.vocabulary, f)
 
         print(f"Vocabulary size: {len(self.vocabulary)}")
@@ -53,7 +53,7 @@ class NLPSimilarity:
 
         #Check if the context windows are already created
         try:
-            with open('output/contexts_windows.pkl', 'rb') as f:
+            with open('./output/contexts_windows.pkl', 'rb') as f:
                 self.contexts_windows = pickle.load(f)
         except:
             #Create the context windows
@@ -69,15 +69,14 @@ class NLPSimilarity:
                         context = []
                         for j in range(i-window_size, i+window_size+1):
                             if(j >= 0 and j < len(self.corpus)):
-                                if(self.corpus[j] != word):
-                                    context.append(self.corpus[j])
+                                context.append(self.corpus[j])
                         self.contexts_windows[word].extend(context)
                 bar_count += 1
                 bar.update(bar_count) 
             bar.finish()
 
             #Save the context windows in the file outut/contexts_windows.pkl 
-            with open('output/contexts_windows.pkl', 'wb') as f:
+            with open('./output/contexts_windows.pkl', 'wb') as f:
                 pickle.dump(self.contexts_windows, f)    
         
         print(f"Context windows created for each word of the vocabulary")
@@ -90,7 +89,7 @@ class NLPSimilarity:
 
         #Check if the matrix is already created
         try:
-            with open('output/context_frequency_matrix.pkl', 'rb') as f:
+            with open('./output/context_frequency_matrix.pkl', 'rb') as f:
                 self.context_frequency_matrix = pickle.load(f)
         except:
             #Check if the vocabulary is already created
@@ -121,7 +120,7 @@ class NLPSimilarity:
             bar.finish()
 
             #Save the context frequency matrix in the file outut/context_frequency_matrix.pkl
-            with open('output/context_frequency_matrix.pkl', 'wb') as f:
+            with open('./output/context_frequency_matrix.pkl', 'wb') as f:
                 pickle.dump(df, f)
 
             #Print the dataframe head    
@@ -262,7 +261,7 @@ class NLPSimilarity:
 
         #Check if the vocabulary is already created
         try:
-            with open('output/vocabulary_idf.pkl', 'rb') as f:
+            with open('./output/vocabulary_idf.pkl', 'rb') as f:
                 self.vocabulary_idf = pickle.load(f)
         except:
             self.vocabulary_idf = {}
@@ -277,9 +276,10 @@ class NLPSimilarity:
             bar.finish()
 
             #Save the vocabulary idf in the file outut/vocabulary_idf.pkl
-            with open('output/vocabulary_idf.pkl', 'wb') as f:
+            with open('./output/vocabulary_idf.pkl', 'wb') as f:
                 pickle.dump(self.vocabulary_idf, f)
 
+        print(f"Idf of each word of the vocabulary loadeded")
         return self.vocabulary_idf
     
     def get_document_idf(self, word):
@@ -294,6 +294,68 @@ class NLPSimilarity:
             self.get_vocabulary_documents_idf()
 
         return self.vocabulary_idf[word]
+    
+    def get_lower_idf_word(self):
+        """
+        Get the word with the lower idf
+        return: the word with the lower idf
+        """
+
+        #Check if the vocabulary idf is already created
+        if self.vocabulary_idf is None:
+            self.get_vocabulary_documents_idf()
+
+        return min(self.vocabulary_idf, key=self.vocabulary_idf.get)
+    
+    def get_higher_idf_word(self):
+        """
+        Get the word with the higher idf
+        return: the word with the higher idf
+        """
+
+        #Check if the vocabulary idf is already created
+        if self.vocabulary_idf is None:
+            self.get_vocabulary_documents_idf()
+
+        return max(self.vocabulary_idf, key=self.vocabulary_idf.get)
+
+    def plot_vocabularty_idf(self):
+        """
+        Plot the idf of the vocabulary
+        """
+
+        #Check if the vocabulary idf is already created
+        if self.vocabulary_idf is None:
+            self.get_vocabulary_documents_idf()
+
+        import matplotlib.pyplot as plt
+
+        plt.figure(figsize=(20,10))
+        plt.bar(self.vocabulary_idf.keys(), self.vocabulary_idf.values())
+        plt.xlabel('Words')
+        plt.ylabel('IDF')
+        plt.title('Inverse Document Frequency of the Vocabulary')
+        plt.show()
+    
+    def calculate_document__BM25_array(self,document,d_len, avdl, k=1.2, b=0.75, verbose=False):
+        """" 
+        Function to calculate the BM25 of a document
+        param document: the document to calculate the BM25
+        param k: the k parameter of the BM25
+        param b: the b parameter of the BM25
+        return: the BM25 of the document
+        """
+        if self.context_frequency_matrix is None:
+            self.create_context_frequency_matrix()
+
+        document_freq_array = self.get_document_frequency_matrix(document)
+        
+        bm25_denominator = document_freq_array + k * (1 - b + b * d_len / avdl)
+        bm25_constant = (k + 1) / bm25_denominator
+        bm25 = bm25_constant * document_freq_array
+
+        return bm25
+
 
     def calculate_document_word_BM25(self,document, word,d_len, avdl, k=1.5, b=0.75, verbose=False):
         """
@@ -332,7 +394,7 @@ class NLPSimilarity:
 
         return np.abs(len(self.contexts_windows[document]))
 
-    def calculate_document_bm25_sum(self, document, verbose=False):
+    def calculate_document_bm25_sum(self, document,d_len, avdl, verbose=False):
         """
         Function to calculate the sum of the BM25 of a document
         """
@@ -345,11 +407,8 @@ class NLPSimilarity:
             print(f"Document: {document}")
 
         bm25_sum = 0
-        avdl = self.calculate_documents_length_average()
-        dl   = self.calculate_document_lenght(document)
 
-        for word in self.vocabulary:
-            bm25_sum += self.calculate_document_word_BM25(document, word, dl, avdl)
+        bm25_sum = self.calculate_document__BM25_array(document,d_len, avdl).sum()
 
         return bm25_sum
 
@@ -384,22 +443,27 @@ class NLPSimilarity:
         if self.vocabulary_idf is None:
             self.get_vocabulary_documents_idf()
 
-        d1_sum = self.calculate_document_bm25_sum(document_1)
-        d2_sum = self.calculate_document_bm25_sum(document_2)
         d1_len = self.calculate_document_lenght(document_1)
         d2_len = self.calculate_document_lenght(document_2)
-
         avdl = self.calculate_documents_length_average()
 
-        for word in self.vocabulary:
-            xi = self.calculate_document_word_BM25(document_1, word,d1_len, avdl)/d1_sum
-            yi = self.calculate_document_word_BM25(document_2, word,d2_len, avdl)/d2_sum
-            bm25_sim += self.get_document_idf(word)*xi*yi
+        xi = self.calculate_document__BM25_array(document_1,d1_len, avdl)
+        yi = self.calculate_document__BM25_array(document_2,d2_len, avdl)
+
+        # xi = xi/xi.sum()
+        # yi = yi/yi.sum()
+
+        xi = xi / (np.linalg.norm(xi))
+        yi = yi / (np.linalg.norm(yi))
+
+        idf_values = []
+
+        idf_values = np.array([self.vocabulary_idf[elem] for elem in self.context_frequency_matrix.columns])
+
+        bm25_sim =  np.dot(idf_values * xi, yi)
 
         if verbose:
             print(f"*******************************************************")
-            print(f"Document 1: {document_1} BM25 sum: {d1_sum}")
-            print(f"Document 2: {document_2} BM25 sum: {d2_sum}")
             print(f"Average document length: {avdl}")
             print(f"BM25 similarity: {bm25_sim}")
             print(f"*******************************************************")
@@ -412,6 +476,8 @@ class NLPSimilarity:
         return a sorted object with the BM25 similarity document:doc
         """
 
+        print(f"Calculating BM25 similarity of the document {document} to all the documents")
+
         #Check if there is a previous calculation
         try:
             if override:
@@ -421,40 +487,33 @@ class NLPSimilarity:
                 with open(external_data, 'rb') as f:
                     self.bm25_one_to_all = pickle.load(f)
             else:
-                with open('output/bm25_one_to_all.pkl', 'rb') as f:
+                with open('./output/bm25_one_to_all.pkl', 'rb') as f:
                     self.bm25_one_to_all = pickle.load(f)
         except:
             #Check if the vocabulary is already created
             if self.vocabulary is None:
                 self.get_vocabulary()
 
-            #Check if idf of the vocabulary is already created
-            if self.vocabulary_idf is None:
-                self.get_vocabulary_documents_idf()
 
             bm25_sim = {}
-
-            xi      = np.zeros(len(self.vocabulary))
-            d1_sum  = self.calculate_document_bm25_sum(document)
-            avdl    = self.calculate_documents_length_average()
-            x1_len  = self.calculate_document_lenght(document)
-
-            for idx,doc in enumerate(self.vocabulary):
-                xi[idx]=(self.get_document_idf(doc)*(self.calculate_document_word_BM25(document, doc,x1_len, avdl)/d1_sum))
 
             bar = pb.ProgressBar(max_value=len(self.vocabulary), redirect_stdout=True)
             bar.start()
             bar_count = 0
+
+            d1_len = self.calculate_document_lenght(document)
+            avdl = self.calculate_documents_length_average()
+            
+            xi = self.calculate_document__BM25_array(document,d1_len, avdl)
+
+            xi = xi / (np.linalg.norm(xi))
+
+            idf_values = np.array([self.vocabulary_idf[elem] for elem in self.context_frequency_matrix.columns])
+
             for doc in self.vocabulary:
-                document_sum    = self.calculate_document_bm25_sum(doc)
-                yi              = np.zeros(len(self.vocabulary))
-                yi_len          = self.calculate_document_lenght(doc)
-
-                for idx, word in enumerate(self.vocabulary):
-                    bm25_d2 = (self.calculate_document_word_BM25(doc, word, yi_len, avdl)/document_sum)
-                    yi[idx]=(bm25_d2)
-
-                bm25_sim[f"{document}:{doc}"] = (xi*yi).sum()
+                yi = self.calculate_document__BM25_array(doc,self.calculate_document_lenght(doc), avdl)
+                yi = yi / (np.linalg.norm(yi))
+                bm25_sim[f"{document}:{doc}"] = np.dot(idf_values * xi, yi)
 
                 bar_count += 1
                 
@@ -470,7 +529,7 @@ class NLPSimilarity:
             self.bm25_one_to_all = bm25_sim
 
             #Save the bm25 similarity in the file outut/bm25_one_to_all.pkl
-            with open('output/bm25_one_to_all.pkl', 'wb') as f:
+            with open('./output/bm25_one_to_all.pkl', 'wb') as f:
                 pickle.dump(bm25_sim, f)
 
         return self.bm25_one_to_all

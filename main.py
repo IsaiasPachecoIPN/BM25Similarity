@@ -1,4 +1,5 @@
 from model import *
+import pandas as pd
 
 #Load the lemmatized corpus
 lemmatized_corpus = open('./output_lematized_text.txt',"r", encoding='utf-8').read()
@@ -26,15 +27,17 @@ model.create_context_frequency_matrix()
 #Frequency matrix normalization
 model.normalize_frequency_matrix()
 
+model.calculate_bm25_smilarity(document_1='crecimiento',document_2='crecimiento', verbose=True)
+
 # print(f"Document frequency {(model.get_document_word_frequency('crecimiento', 'crecer'))}")
 # print(model.context_frequency_matrix.head())
 
 # model.calculate_bm25_smilarity(document_1='crecimiento',document_2='ambicioso', verbose=True)
 # model.calculate_cosine_similarity(document_1='crecimiento',document_2='crecimiento', verbose=True)
 
-data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True, load_external_data=True, external_data='./output/bm25_one_to_all_ok.pkl')
+data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True, load_external_data=True, override=True)
 
-counter = 100
+counter = 10
 for idx,key in enumerate(data.keys()):
     print(f"[{idx}]{key}: {data[key]}")
     counter -= 1

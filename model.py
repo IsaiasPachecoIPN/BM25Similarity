@@ -69,7 +69,8 @@ class NLPSimilarity:
                         context = []
                         for j in range(i-window_size, i+window_size+1):
                             if(j >= 0 and j < len(self.corpus)):
-                                context.append(self.corpus[j])
+                                if(self.corpus[j] != word):
+                                    context.append(self.corpus[j])
                         self.contexts_windows[word].extend(context)
                 bar_count += 1
                 bar.update(bar_count) 
@@ -405,7 +406,7 @@ class NLPSimilarity:
 
         return bm25_sim
     
-    def calculate_bm25_similarity_one_document_to_all(self, document, override=False, verbose=False):
+    def calculate_bm25_similarity_one_document_to_all(self, document, override=False, verbose=False, load_external_data=False, external_data=None):
         """
         Function to get the BM25 similarity of a document to all the documents
         return a sorted object with the BM25 similarity document:doc
@@ -415,8 +416,13 @@ class NLPSimilarity:
         try:
             if override:
                 raise Exception("Override")
-            with open('output/bm25_one_to_all.pkl', 'rb') as f:
-                self.bm25_one_to_all = pickle.load(f)
+            
+            if load_external_data:
+                with open(external_data, 'rb') as f:
+                    self.bm25_one_to_all = pickle.load(f)
+            else:
+                with open('output/bm25_one_to_all.pkl', 'rb') as f:
+                    self.bm25_one_to_all = pickle.load(f)
         except:
             #Check if the vocabulary is already created
             if self.vocabulary is None:
@@ -505,7 +511,7 @@ class NLPSimilarity:
         documents_cosine_sim = {}
 
         for doc in self.vocabulary:
-            documents_cosine_sim[doc] = self.calculate_cosine_similarity(document1, doc)
+            documents_cosine_sim[f"{document1}:{doc}"] = self.calculate_cosine_similarity(document1, doc)
 
         documents_cosine_sim = dict(sorted(documents_cosine_sim.items(), key=lambda item: item[1], reverse=True))
 

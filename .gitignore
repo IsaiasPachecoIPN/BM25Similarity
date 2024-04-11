@@ -4,3 +4,8 @@ output/contexts_windows.pkl
 output/vocabulary.pkl
 output/vocabulary_idf.pkl
 /__pycache__
+output/bm25_one_to_all.pkl
+output/bm25_one_to_all_not_normalized_no_same_word_context.pkl
+output/bm25_one_to_all_ok.pkl
+output/bm25_one_to_all.pkl
+output/bm25_one_to_all.pkl

@@ -21,6 +21,10 @@ class NLPSimilarity:
 
         """
         Funtion to get the vocabulary of the corpus
+
+        @param corpus:  The corpus to get the vocabulary
+        @return:        The vocabulary of the corpus
+        @note:          The vocabulary is stored in the file output/vocabulary.pkl and is loaded if it exists
         """
 
         #Check if the vocabulary is already created
@@ -43,8 +47,9 @@ class NLPSimilarity:
     def create_context_windows(self, window_size=8):
         """"
         Create context windows of each word of the vocabulary
-        param window_size: the size of the context windows
-
+        @param:     window_size: the size of the context windows
+        @return:    the context windows of each word of the vocabulary
+        @note:      The context windows are stored in the file output/contexts_windows.pkl and are loaded if it exists
         """
 
         #Check if the vocabulary is already created
@@ -84,7 +89,9 @@ class NLPSimilarity:
     def create_context_frequency_matrix(self, verbose=False):
         """
         Create the context frequency matrix
-        return: the context frequency matrix as a pandas dataframe
+        @param verbose: a boolean to print the head of the context frequency matrix
+        return:         the context frequency matrix as a pandas dataframe
+        @note:          The context frequency matrix is stored in the file output/context_frequency_matrix.pkl and is loaded if it exists
         """
 
         #Check if the matrix is already created
@@ -137,8 +144,8 @@ class NLPSimilarity:
         
         """
         Funtion to get the document frequency matrix
-        param document: the document to get the frequency matrix
-        return: the frequency matrix of the document
+        @param document     The document to get the frequency matrix
+        @return:            The frequency matrix of the document
         """
 
         #Check if the frequency matrix is already created
@@ -150,8 +157,8 @@ class NLPSimilarity:
     def get_max_frequency_word(self, document):
         """
         Get the word with the maximum frequency in a document
-        param document: the document to get the word
-        return: the word with the maximum frequency in the document
+        @param document     The document to get the word
+        @return:            The word with the maximum frequency in the document
         """
 
         #Check if the frequency matrix is already created
@@ -164,9 +171,9 @@ class NLPSimilarity:
 
         """
         Function to get the frequency of a word in a document
-        param document: the document to get the frequency
-        param word: the word to get the frequency
-        return: the frequency of the word in the document
+        @param document:    The document to get the frequency
+        @param word:        The word to get the frequency
+        return:             The frequency of the word in the document
         """
             
         #Check if the frequency matrix is already created
@@ -178,8 +185,8 @@ class NLPSimilarity:
     def get_word_context_window_array(self, word):
         """
         Get the context windows of a word
-        param word: the word to get the context windows
-        return: the context windows of the word
+        @param word:    The word to get the context windows
+        @return:        The context windows of the word
         """
 
         #Check if the context windows are already created
@@ -188,9 +195,12 @@ class NLPSimilarity:
 
         return self.contexts_windows[word]
 
-    def normalize_frequency_matrix(self):
+    def normalize_frequency_matrix(self, use_l2_norm=True):
+        
         """
-        Normalize the frequency matrix array
+        Normalize the frequency matrix by normalizing the context frequency array of every document
+        @param use_l2_norm: A boolean to use the l2 norm
+        return:             The normalized frequency matrix
         """
 
         if self.vocabulary is None:
@@ -204,18 +214,10 @@ class NLPSimilarity:
         for word in self.vocabulary:
             ctx_freq_arr = self.context_frequency_matrix.loc[word].to_numpy()
             ctx_freq_arr_norm = np.linalg.norm(ctx_freq_arr)
-            self.context_frequency_matrix.loc[word] = ctx_freq_arr/ctx_freq_arr_norm
-
-        # matrix_array = self.context_frequency_matrix.to_numpy()
-        # row_sums = matrix_array.sum(axis=1)
-
-        # matrix_l2_norm = np.linalg.norm(matrix_array)
-
-        # #Normalize the matrix
-        # normalized_matrix = matrix_array/matrix_l2_norm
-
-        # #Store the normalized matrix in a pandas dataframe
-        # self.context_frequency_matrix = pd.DataFrame(normalized_matrix, index=list(self.vocabulary), columns=list(self.vocabulary))
+            if use_l2_norm:
+                self.context_frequency_matrix.loc[word] = ctx_freq_arr/np.linalg.norm(ctx_freq_arr)
+            else:
+                self.context_frequency_matrix.loc[word] = ctx_freq_arr/ctx_freq_arr_norm
         
         print(f"Frequency matrix normalized")
         return self.context_frequency_matrix
@@ -223,8 +225,8 @@ class NLPSimilarity:
     def calculate_document_idf(self, word):
         """
         Get the inverse document frequency of a word of the vocabulary
-        param word: the word to get the idf
-        return: the idf of the word
+        @param word:    The word to get the idf
+        @return:        The idf of the word
         """
 
         #Check if the vocabulary is already created
@@ -250,8 +252,9 @@ class NLPSimilarity:
 
     def get_vocabulary_documents_idf(self):
         """
-        Get the inverse document frequency of each word of the vocabulary
-        return: the idf of each word
+        Get the inverse document frequency of each word of the vocabulary and generate a dictionary
+        @return:    The idf of each word
+        @note:      The idf of each word is stored in the file output/vocabulary_idf.pkl and is loaded if it exists
         """
         print("Getting the idf of each word of the vocabulary")
 
@@ -279,14 +282,15 @@ class NLPSimilarity:
             with open('./output/vocabulary_idf.pkl', 'wb') as f:
                 pickle.dump(self.vocabulary_idf, f)
 
-        print(f"Idf of each word of the vocabulary loadeded")
+        print(f"Idf of each word of the vocabulary loaded")
         return self.vocabulary_idf
     
+
     def get_document_idf(self, word):
         """
-        Get the inverse document frequency of a word of the vocabulary
-        param word: the word to get the idf
-        return: the idf of the word
+        Get the inverse document frequency of a document
+        @param word:    The word to get the idf
+        @return:        The idf of the word
         """
 
         #Check if the vocabulary idf is already created
@@ -319,9 +323,9 @@ class NLPSimilarity:
 
         return max(self.vocabulary_idf, key=self.vocabulary_idf.get)
 
-    def plot_vocabularty_idf(self):
+    def plot_vocabularty_idf(self, limit=100):
         """
-        Plot the idf of the vocabulary
+        Plot the idf of the vocabulary using matplotlib
         """
 
         #Check if the vocabulary idf is already created
@@ -330,20 +334,21 @@ class NLPSimilarity:
 
         import matplotlib.pyplot as plt
 
+
         plt.figure(figsize=(20,10))
-        plt.bar(self.vocabulary_idf.keys(), self.vocabulary_idf.values())
+        plt.bar(self.vocabulary_idf.keys()[:limit], self.vocabulary_idf.values()[:limit])
         plt.xlabel('Words')
         plt.ylabel('IDF')
         plt.title('Inverse Document Frequency of the Vocabulary')
         plt.show()
     
-    def calculate_document__BM25_array(self,document,d_len, avdl, k=1.2, b=0.75, verbose=False):
+    def calculate_document_BM25_array(self,document,d_len, avdl, k=1.2, b=0.75, verbose=False):
         """" 
         Function to calculate the BM25 of a document
-        param document: the document to calculate the BM25
-        param k: the k parameter of the BM25
-        param b: the b parameter of the BM25
-        return: the BM25 of the document
+        @param document:    The document to calculate the BM25
+        @param k:           The k parameter of the BM25
+        @param b:           The b parameter of the BM25
+        @return:            The BM25 array of the document
         """
         if self.context_frequency_matrix is None:
             self.create_context_frequency_matrix()
@@ -359,7 +364,12 @@ class NLPSimilarity:
 
     def calculate_document_word_BM25(self,document, word,d_len, avdl, k=1.5, b=0.75, verbose=False):
         """
-        Function to calculate the BM25 of the word in a document
+        Function to calculate the BM25 of certain word in a document
+        @param document:    The document to calculate the BM25
+        @param word:        The word to calculate the BM25
+        @param k:           The k parameter of the BM25
+        @param b:           The b parameter of the BM25
+        @return:            The BM25 of the word in the document
         """
 
         word_ctx_freq = self.get_document_word_frequency(document,word)
@@ -386,6 +396,8 @@ class NLPSimilarity:
     def calculate_document_lenght(self, document):
         """
         Function to calculate the length of a document
+        @param document:    The document to calculate the length
+        @return:            The length of the document
         """
 
         #Check if the context windows are already created
@@ -394,28 +406,10 @@ class NLPSimilarity:
 
         return np.abs(len(self.contexts_windows[document]))
 
-    def calculate_document_bm25_sum(self, document,d_len, avdl, verbose=False):
-        """
-        Function to calculate the sum of the BM25 of a document
-        """
-
-        #Check if the frequency matrix is already created
-        if self.context_frequency_matrix is None:
-            self.create_context_frequency_matrix()
-
-        if verbose:
-            print(f"Document: {document}")
-
-        bm25_sum = 0
-
-        bm25_sum = self.calculate_document__BM25_array(document,d_len, avdl).sum()
-
-        return bm25_sum
-
     def calculate_documents_length_average(self):
         """
         Function to calculate the average length of the documents
-        return: the average length of the documents
+        @return: the average length of the documents
         """
 
         #Check if the context windows are already created
@@ -432,9 +426,9 @@ class NLPSimilarity:
     def calculate_bm25_smilarity(self, document_1, document_2, verbose=False):
         """
         Function to calculate the BM25 similarity between two documents
-        param document1: the first document
-        param document2: the second document
-        return: the BM25 similarity between the two documents
+        @param document1:   The first document
+        @param document2:   The second document
+        @return:            The BM25 similarity between the two documents
         """
 
         bm25_sim = 0
@@ -447,16 +441,14 @@ class NLPSimilarity:
         d2_len = self.calculate_document_lenght(document_2)
         avdl = self.calculate_documents_length_average()
 
-        xi = self.calculate_document__BM25_array(document_1,d1_len, avdl)
-        yi = self.calculate_document__BM25_array(document_2,d2_len, avdl)
+        xi = self.calculate_document_BM25_array(document_1,d1_len, avdl)
+        yi = self.calculate_document_BM25_array(document_2,d2_len, avdl)
 
         # xi = xi/xi.sum()
         # yi = yi/yi.sum()
 
         xi = xi / (np.linalg.norm(xi))
         yi = yi / (np.linalg.norm(yi))
-
-        idf_values = []
 
         idf_values = np.array([self.vocabulary_idf[elem] for elem in self.context_frequency_matrix.columns])
 
@@ -504,14 +496,14 @@ class NLPSimilarity:
             d1_len = self.calculate_document_lenght(document)
             avdl = self.calculate_documents_length_average()
             
-            xi = self.calculate_document__BM25_array(document,d1_len, avdl)
+            xi = self.calculate_document_BM25_array(document,d1_len, avdl)
 
             xi = xi / (np.linalg.norm(xi))
 
             idf_values = np.array([self.vocabulary_idf[elem] for elem in self.context_frequency_matrix.columns])
 
             for doc in self.vocabulary:
-                yi = self.calculate_document__BM25_array(doc,self.calculate_document_lenght(doc), avdl)
+                yi = self.calculate_document_BM25_array(doc,self.calculate_document_lenght(doc), avdl)
                 yi = yi / (np.linalg.norm(yi))
                 bm25_sim[f"{document}:{doc}"] = np.dot(idf_values * xi, yi)
 

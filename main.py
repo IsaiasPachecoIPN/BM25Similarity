@@ -35,9 +35,9 @@ model.calculate_bm25_smilarity(document_1='crecimiento',document_2='crecimiento'
 # model.calculate_bm25_smilarity(document_1='crecimiento',document_2='ambicioso', verbose=True)
 # model.calculate_cosine_similarity(document_1='crecimiento',document_2='crecimiento', verbose=True)
 
-data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True, load_external_data=True, override=True)
+data = model.calculate_bm25_similarity_one_document_to_all('crecimiento', verbose=True)
 
-counter = 10
+counter = 20
 for idx,key in enumerate(data.keys()):
     print(f"[{idx}]{key}: {data[key]}")
     counter -= 1
